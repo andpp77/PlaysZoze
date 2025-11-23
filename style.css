@@ -1,0 +1,72 @@
+body {
+    margin: 0;
+    overflow: hidden; /* Evita barras de rolagem */
+    background-color: #87CEEB; /* Céu azul */
+}
+
+#game-container {
+    position: relative;
+    width: 800px; /* Largura da tela de jogo */
+    height: 500px; /* Altura da tela de jogo */
+    margin: 50px auto;
+    border: 5px solid black;
+    background-color: #87CEEB;
+}
+
+/* Personagem */
+#player {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: red; /* Cor do Mario */
+    bottom: 0px; /* Posição inicial no chão */
+    left: 50px;
+    z-index: 10; /* Sempre na frente */
+    transition: background-color 0.1s; /* Transição suave para indicar dano/pulo */
+}
+
+/* Inimigo */
+.enemy {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background-color: brown; /* Cor do Goomba */
+    bottom: 0px;
+    left: 600px;
+    transition: opacity 0.3s;
+}
+
+.enemy.dead {
+    opacity: 0;
+    /* Adicione transformação para achatar o inimigo aqui se quiser um visual mais fiel */
+}
+
+/* Plataformas */
+.platform {
+    position: absolute;
+    background-color: green;
+}
+
+.platform.ground {
+    width: 100%;
+    height: 20px;
+    bottom: 0;
+    left: 0;
+    background-color: darkgreen; /* Cor do chão */
+}
+
+.platform.block {
+    width: 100px;
+    height: 20px;
+    background-color: sienna;
+}
+
+.platform-1 {
+    bottom: 100px;
+    left: 150px;
+}
+
+.platform-2 {
+    bottom: 150px;
+    left: 400px;
+}
