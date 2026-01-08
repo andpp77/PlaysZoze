@@ -2,20 +2,34 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Mario Básico em JS</title>
+    <title>Mario JS - Animado</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
-        <div id="player"></div>
+        <div id="hud" class="hidden">
+            <span>VIDAS: <b id="lives-count">3</b></span>
+            <span>MOEDAS: <b id="coin-count">0</b></span>
+        </div>
 
-        <div class="enemy" id="goomba" data-alive="true"></div>
+        <div id="start-screen" class="overlay">
+            <h1>MARIO ANIMADO</h1>
+            <p>WASD para mover e pular</p>
+            <button id="start-button">COMEÇAR</button>
+        </div>
 
-        <div class="platform ground"></div>
-        <div class="platform block platform-1"></div>
-        <div class="platform block platform-2"></div>
+        <div id="game-world" class="hidden">
+            <div id="player"></div>
+            <div class="platform ground" style="left: 0; top: 440px; width: 1200px; height: 60px;"></div>
+            <div class="platform ground" style="left: 1400px; top: 440px; width: 3000px; height: 60px;"></div>
+            
+            <div class="platform pipe" style="left: 800px; top: 370px; width: 80px; height: 70px;"></div>
+            <div class="platform block" style="left: 400px; top: 300px; width: 40px; height: 40px;"></div>
+            <div class="coin" style="left: 410px; top: 260px;"></div>
+
+            <div id="finish-line" style="left: 3500px; top: 140px;"><div class="flag"></div></div>
+        </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

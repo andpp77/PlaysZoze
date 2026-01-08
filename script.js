@@ -1,189 +1,128 @@
-// --- Variáveis de Jogo ---
 const player = document.getElementById('player');
-const gameContainer = document.getElementById('game-container');
-const enemy = document.getElementById('goomba'); // Pegando o inimigo
+const gameWorld = document.getElementById('game-world');
+const livesDisplay = document.getElementById('lives-count');
+const coinDisplay = document.getElementById('coin-count');
 
-let playerX = 50;
-let playerY = 0; // Posição Y (0 é o chão)
-let velocityY = 0; // Velocidade vertical (para pulo e gravidade)
-let isJumping = false;
-let isFalling = false;
+// Configuração de Sprites (Links públicos para teste)
+const sprites = {
+    idle: "./imgs/1.png",
+    walk1: "./imgs/2.png",
+    walk2: "./imgs/3.png",
+    jump: "./imgs/4.png"
+};
 
-const GRAVITY = 0.5;
-const JUMP_STRENGTH = 10;
+let playerX, playerY, velocityY, lives, coins, cameraX, isJumping, gameActive, isPaused;
+let animCounter = 0; // Controla a velocidade da animação
+
+const GRAVITY = 0.8;
+const JUMP_STRENGTH = -16;
 const MOVE_SPEED = 5;
+const keys = {};
 
-// --- Colisões e Estado do Jogo ---
+document.getElementById('start-button').addEventListener('click', startGame);
 
-/**
- * Função principal de colisão.
- * @returns {number} O Y da plataforma em que o jogador está, ou -1 se estiver no ar.
- */
-function checkCollision() {
+function startGame() {
+    playerX = 100; playerY = 300; velocityY = 0;
+    lives = 3; coins = 0; cameraX = 0;
+    isJumping = false; gameActive = true; isPaused = false;
+    
+    livesDisplay.innerText = lives;
+    coinDisplay.innerText = coins;
+    document.querySelector('.overlay').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    gameWorld.classList.remove('hidden');
+    
+    requestAnimationFrame(gameLoop);
+}
+
+document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+// FUNÇÃO DE ANIMAÇÃO
+function updateAnimation() {
+    animCounter++;
+
+    if (isJumping) {
+        player.style.backgroundImage = `url('${sprites.jump}')`;
+    } 
+    else if (keys['d'] || keys['arrowright'] || keys['a'] || keys['arrowleft']) {
+        // Alterna entre walk1 e walk2 a cada 10 frames
+        if (animCounter % 20 < 10) {
+            player.style.backgroundImage = `url('${sprites.walk1}')`;
+        } else {
+            player.style.backgroundImage = `url('${sprites.walk2}')`;
+        }
+    } 
+    else {
+        player.style.backgroundImage = `url('${sprites.idle}')`;
+    }
+
+    // Virar o Sprite (Horizontal)
+    if (keys['a'] || keys['arrowleft']) {
+        player.style.transform = "scaleX(-1)";
+    } else if (keys['d'] || keys['arrowright']) {
+        player.style.transform = "scaleX(1)";
+    }
+}
+
+function updatePhysics() {
+    let onGround = false;
     const platforms = document.querySelectorAll('.platform');
-    let maxGroundY = 0;
-    let hitPlatform = false;
 
-    // Define as coordenadas do jogador
-    const playerRect = player.getBoundingClientRect();
-    const gameRect = gameContainer.getBoundingClientRect();
+    platforms.forEach(plat => {
+        const px = parseFloat(plat.style.left);
+        const py = parseFloat(plat.style.top);
+        const pw = parseFloat(plat.style.width);
 
-    // Normaliza as coordenadas do jogador em relação ao contêiner
-    const pLeft = playerRect.left - gameRect.left;
-    const pRight = playerRect.right - gameRect.left;
-    const pBottom = gameRect.height - (playerRect.bottom - gameRect.top);
-    const pTop = gameRect.height - (playerRect.top - gameRect.top);
-
-    platforms.forEach(platform => {
-        const platformRect = platform.getBoundingClientRect();
-        
-        // Normaliza as coordenadas da plataforma
-        const plLeft = platformRect.left - gameRect.left;
-        const plRight = platformRect.right - gameRect.left;
-        const plBottom = gameRect.height - (platformRect.bottom - gameRect.top);
-        const plTop = gameRect.height - (platformRect.top - gameRect.top);
-
-        // Checa sobreposição horizontal
-        if (pRight > plLeft && pLeft < plRight) {
-            // Checa colisão com o topo (pouso)
-            // Se o jogador está caindo (isFalling) e a base do jogador está
-            // prestes a tocar ou está tocando a plataforma.
-            if (isFalling && pBottom >= plTop && pBottom - velocityY <= plTop) {
-                // Colisão de Pouso!
-                maxGroundY = Math.max(maxGroundY, plTop);
-                hitPlatform = true;
+        if (playerX + 30 > px && playerX < px + pw - 5) {
+            if (playerY + 40 <= py + 10 && playerY + 40 + velocityY >= py) {
+                if (velocityY >= 0) {
+                    playerY = py - 40;
+                    velocityY = 0;
+                    isJumping = false;
+                    onGround = true;
+                }
             }
         }
     });
-    
-    // Colisão com o chão (ground)
-    maxGroundY = Math.max(maxGroundY, 20); // Altura do chão definida no CSS (20px)
 
-    return maxGroundY;
+    if (!onGround) {
+        velocityY += GRAVITY;
+        playerY += velocityY;
+        isJumping = true; 
+    }
+
+    if (playerY > 500) die();
 }
 
-/**
- * Função de colisão do jogador com o inimigo.
- */
-function checkEnemyCollision() {
-    if (enemy.getAttribute('data-alive') === 'false') return;
-
-    const playerRect = player.getBoundingClientRect();
-    const enemyRect = enemy.getBoundingClientRect();
-    
-    // Verifica sobreposição de retângulos (colisão básica)
-    if (playerRect.left < enemyRect.right &&
-        playerRect.right > enemyRect.left &&
-        playerRect.top < enemyRect.bottom &&
-        playerRect.bottom > enemyRect.top) {
-
-        // --- Colisão Aconteceu! ---
-
-        // Verifica se foi um PULO/PISÃO (jogador está acima e caindo/descendo)
-        // Se o topo do jogador (que é o que está acima) está acima do topo do inimigo E
-        // O jogador está se movendo para baixo (velocityY < 0)
-        // OBS: No sistema de coordenadas da tela, Y cresce para baixo, mas estamos
-        // usando a convenção de jogo onde Y cresce para cima, então velocityY < 0 significa 'caindo'.
-        
-        // Vamos simplificar: Pisão ocorre se o *fundo* do jogador está no *terço superior* do inimigo.
-        const isStomp = playerRect.bottom <= enemyRect.top + (enemyRect.height * 0.3) && velocityY < 0;
-
-        if (isStomp) {
-            // Derrotar o inimigo
-            console.log("PISOU NO INIMIGO!");
-            enemy.setAttribute('data-alive', 'false');
-            enemy.classList.add('dead');
-            // Dá um pequeno pulo extra para o jogador
-            velocityY = JUMP_STRENGTH * 0.6; 
-        } else {
-            // O jogador foi atingido (lógica de dano aqui, por exemplo, reiniciar)
-            console.log("JOGADOR FOI ATINGIDO!");
-            alert("Game Over! Tente novamente.");
-            location.reload(); // Reinicia o jogo (muito simplificado)
-        }
+function die() {
+    lives--;
+    livesDisplay.innerText = lives;
+    if (lives <= 0) {
+        gameActive = false;
+        location.reload();
+    } else {
+        playerX -= 150; playerY = 100; velocityY = 0;
     }
 }
-
-
-// --- Lógica do Jogo (Game Loop) ---
 
 function gameLoop() {
-    // 1. Aplica Gravidade
-    velocityY -= GRAVITY;
-    playerY += velocityY;
+    if (!gameActive) return;
 
-    // 2. Verifica Colisão com Plataforma/Chão
-    const groundY = checkCollision();
-    
-    if (playerY <= groundY) {
-        playerY = groundY; // Reposiciona no chão/plataforma
-        velocityY = 0; // Zera a velocidade vertical
-        isJumping = false;
-        isFalling = false;
-    } else if (velocityY < 0) {
-        isFalling = true; // Só está caindo se estiver no ar e a velocidade for negativa
+    if (keys['arrowright'] || keys['d']) playerX += MOVE_SPEED;
+    if (keys['arrowleft'] || keys['a']) playerX -= MOVE_SPEED;
+    if ((keys['w'] || keys[' ']) && !isJumping) {
+        velocityY = JUMP_STRENGTH;
+        isJumping = true;
     }
 
+    updatePhysics();
+    updateAnimation(); // Chama a animação em cada frame
 
-    // 3. Verifica Colisão com Inimigo
-    checkEnemyCollision();
+    if (playerX > 400) cameraX = playerX - 400;
+    gameWorld.style.transform = `translateX(-${cameraX}px)`;
+    player.style.left = playerX + "px";
+    player.style.top = playerY + "px";
 
-
-    // 4. Atualiza Posição do Personagem no DOM (Visual)
-    player.style.left = `${playerX}px`;
-    // playerY = 0 é o chão, e o CSS bottom: 0px também é o chão.
-    player.style.bottom = `${playerY}px`; 
-
-
-    // 5. Move o Inimigo (Movimento Básico de Vai-e-Vem)
-    if (enemy.getAttribute('data-alive') === 'true') {
-        let enemyX = parseInt(enemy.style.left || 600); // Posição inicial
-
-        // Movimento simples (exemplo: andando para a esquerda)
-        enemyX -= 1; 
-
-        // Reposiciona o inimigo se sair da tela (muito simplificado)
-        if (enemyX < 50) { 
-            enemyX = 750;
-        }
-
-        enemy.style.left = `${enemyX}px`;
-        // Garantindo que o inimigo fique no chão
-        enemy.style.bottom = '20px'; 
-    }
-
-
-    requestAnimationFrame(gameLoop); // Próxima iteração
+    requestAnimationFrame(gameLoop);
 }
-
-// --- Controles de Teclado ---
-
-document.addEventListener('keydown', (e) => {
-    switch (e.key) {
-        case 'ArrowRight':
-        case 'd':
-            playerX += MOVE_SPEED;
-            break;
-        case 'ArrowLeft':
-        case 'a':
-            playerX -= MOVE_SPEED;
-            break;
-        case ' ': // Barra de espaço
-        case 'w':
-            if (!isJumping) {
-                // Só pode pular se não estiver pulando/caindo
-                isJumping = true;
-                velocityY = JUMP_STRENGTH;
-            }
-            break;
-    }
-    
-    // Garante que o jogador não saia dos limites do jogo
-    if (playerX < 0) playerX = 0;
-    if (playerX > gameContainer.offsetWidth - player.offsetWidth) {
-        playerX = gameContainer.offsetWidth - player.offsetWidth;
-    }
-});
-
-// --- Iniciar o Jogo ---
-gameLoop();
